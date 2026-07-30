@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-07-30T22:36:06.421Z",
+  "environment": { "node": "v22.16.0", "platform": "linux", "arch": "x64" },
+  "scope": "Deterministic post-optimization CPU/data-path benchmark. Browser-only GPU/frame metrics are collected by the optional F3 overlay.",
+  "world": { "maps": 24, "totalMapBytes": 2312990, "totalTiles": 38592, "totalObjects": 630, "maxObjects": 117 },
+  "assets": { "runtimeAtlasCount": 3, "runtimeTextureBytes": 11590, "audioFiles": 68, "audioBytes": 14571414 },
+  "benchmarks": {
+    "pathfinding400": { "medianMs": 13.385, "iterations": 53405, "pathLength": 8664 },
+    "entityStreaming3000x900": { "medianMs": 1.728, "changes": 4388, "updates": 34168 },
+    "collisionQueries12000x1400": { "medianMs": 26.629, "hits": 2828 },
+    "mapParse80Passes": { "medianMs": 272.844, "objectsVisited": 50400 },
+    "saveParse1600": { "medianMs": 273.302, "saveBytes": 31689 }
+  },
+  "network": { "snapshotBytes": 1183, "estimatedBytesPerSecondAt10Hz": 11830 },
+  "memory": { "heapUsedBytes": 9438768, "rssBytes": 74735616 },
+  "notes": [
+    "Map JSON is already loaded once by Phaser and cached; no speculative parser rewrite was applied.",
+    "Save loading remains correctness-first; the overlay now records real load duration rather than introducing mutable save-object caching.",
+    "Network snapshot size is unchanged because the test room was already within its traffic budget."
+  ]
+}
