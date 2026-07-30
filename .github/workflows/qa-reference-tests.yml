@@ -1,0 +1,25 @@
+name: QA reference correctness
+
+on:
+  pull_request:
+    paths:
+      - 'docs/QA_TEST_PLAN.md'
+      - 'docs/MANUAL_QA_CHECKLIST.md'
+      - 'docs/KNOWN_ISSUES.md'
+      - 'qa-reference/**'
+      - '.github/workflows/qa-reference-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify QA reference package
+        run: node qa-reference/tools/verify-reference.mjs
