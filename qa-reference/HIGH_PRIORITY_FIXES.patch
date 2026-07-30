@@ -1,0 +1,46 @@
+--- a/src/items/ItemInventory.ts
++++ b/src/items/ItemInventory.ts
+@@ -81,11 +81,29 @@
+       this.saveData.inventory.economy.glints = current - removed;
+     } else if (definition.ammunitionId) {
+       this.saveData.inventory.equipment.ammunition[definition.ammunitionId] = current - removed;
+-    } else if (!definition.equipmentItemId) {
++    } else if (definition.equipmentItemId) {
++      const equipmentItemId = definition.equipmentItemId as EquipmentItemId;
++      if (equipmentItemId === EquipmentItemIds.WardenBlade) {
++        return { itemId, requested, removed: 0, quantity: current };
++      }
++      this.saveData.inventory.equipment.ownedItemIds =
++        this.saveData.inventory.equipment.ownedItemIds.filter((id) => id !== equipmentItemId);
++      delete this.saveData.inventory.equipment.upgrades[equipmentItemId];
++      if (this.saveData.inventory.equipment.equipped.defense === equipmentItemId) {
++        this.saveData.inventory.equipment.equipped.defense = EquipmentItemIds.EmptyDefense;
++      }
++      if (this.saveData.inventory.equipment.equipped.tool === equipmentItemId) {
++        this.saveData.inventory.equipment.equipped.tool = EquipmentItemIds.EmptyTool;
++      }
++    } else {
+       this.saveData.inventory.economy.itemStacks[itemId] = current - removed;
+       this.syncLegacyConsumable(definition, current - removed);
++      if (definition.unique && UNIQUE_COLLECTION_CATEGORIES.has(definition.category)) {
++        this.saveData.inventory.collectedItems =
++          this.saveData.inventory.collectedItems.filter((id) => id !== itemId);
++      }
+     }
+-    return { itemId, requested, removed, quantity: current - removed };
++    return { itemId, requested, removed, quantity: this.quantity(itemId) };
+   }
+ 
+   public spendGlints(amount: number): boolean {
+--- a/src/scenes/WorldScene.ts
++++ b/src/scenes/WorldScene.ts
+@@ -816,7 +837,8 @@
+     this.runtime.snapshotPersistentObjects();
+     this.saveData.player.mapId = mapId;
+     this.saveData.player.spawnId = spawnId;
+-    this.saveData.player.regionId = this.runtime.metadata.regionId;
++    this.saveData.player.regionId =
++      getOverworldNode(mapId)?.regionId ?? this.runtime.metadata.regionId;
+     this.saveData.player.x = 0;
+     this.saveData.player.y = 0;
+     this.saveData.player.health = this.player.health.current;
