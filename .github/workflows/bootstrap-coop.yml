@@ -1,0 +1,38 @@
+name: Expand co-op test room
+
+on:
+  push:
+    branches:
+      - agent/two-player-coop-test-room
+    paths:
+      - "bootstrap/**"
+
+permissions:
+  contents: write
+
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/two-player-coop-test-room
+
+      - name: Verify and expand source package
+        shell: bash
+        run: |
+          cat bootstrap/coop-source.part-* > /tmp/emberveil-coop.tar.xz
+          echo "224c89303aceb07864a29cb9b46883a1dd8bd8d45576a5bc2b346c741630f482  /tmp/emberveil-coop.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/emberveil-coop.tar.xz
+          rm -rf bootstrap
+          rm .github/workflows/bootstrap-coop.yml
+
+      - name: Commit expanded source
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add standalone two-player co-op test room"
+          git push origin HEAD:agent/two-player-coop-test-room
