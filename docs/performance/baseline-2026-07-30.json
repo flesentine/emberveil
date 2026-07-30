@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-07-30T22:29:16.903Z",
+  "environment": { "node": "v22.16.0", "platform": "linux", "arch": "x64" },
+  "scope": "deterministic CPU/data-path baseline; browser GPU utilization is instrumented in-engine because Node cannot expose it",
+  "world": { "maps": 24, "totalMapBytes": 2312990, "totalTiles": 38592, "totalObjects": 630, "maxObjects": 117 },
+  "assets": { "runtimeAtlasCount": 3, "runtimeTextureBytes": 11590, "audioFiles": 68, "audioBytes": 14571414 },
+  "benchmarks": {
+    "pathfinding400": { "medianMs": 54.432, "iterations": 60710, "pathLength": 6550 },
+    "entityStreaming3000x900": { "medianMs": 6.196, "changes": 1454, "updates": 34372 },
+    "collisionQueries12000x1400": { "medianMs": 42.315, "hits": 2828 },
+    "mapParse80Passes": { "medianMs": 272.844, "objectsVisited": 50400 },
+    "saveParse1600": { "medianMs": 273.302, "saveBytes": 31689 }
+  },
+  "network": { "snapshotBytes": 1183, "estimatedBytesPerSecondAt10Hz": 11830 },
+  "memory": { "heapUsedBytes": 10300376, "rssBytes": 78999552 }
+}
