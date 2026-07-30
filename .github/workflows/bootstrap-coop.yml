@@ -6,12 +6,19 @@ on:
       - agent/two-player-coop-test-room
     paths:
       - "bootstrap/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "bootstrap/**"
+      - ".github/workflows/bootstrap-coop.yml"
 
 permissions:
   contents: write
 
 jobs:
   expand:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Check out implementation branch
