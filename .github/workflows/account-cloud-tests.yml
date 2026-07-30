@@ -1,0 +1,52 @@
+name: Account and cloud-save service
+
+on:
+  pull_request:
+    paths:
+      - 'account-cloud-service/**'
+      - 'docs/ACCOUNT_CLOUD_SAVE_THREAT_MODEL.md'
+      - '.github/workflows/account-cloud-tests.yml'
+  push:
+    branches: [main, agent/two-player-coop-test-room]
+    paths:
+      - 'account-cloud-service/**'
+      - 'docs/ACCOUNT_CLOUD_SAVE_THREAT_MODEL.md'
+      - '.github/workflows/account-cloud-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: account-cloud-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      - run: npm test
+      - name: Start service and verify guest isolation
+        env:
+          ACCOUNT_PORT: '8082'
+          ACCOUNT_HOST: 127.0.0.1
+          ACCOUNT_PUBLIC_BASE_URL: http://127.0.0.1:8082
+          ACCOUNT_ALLOWED_ORIGINS: http://localhost:5173
+          ACCOUNT_DATABASE_PATH: /tmp/emberveil-account-ci.sqlite
+          BETTER_AUTH_SECRET: ci-only-better-auth-secret-00000000000000000000000000000000
+          ACCOUNT_CSRF_COOKIE_SECRET: ci-only-csrf-cookie-secret-000000000000000000000000000000
+          ACCOUNT_CSRF_HMAC_KEY: ci-only-csrf-hmac-key-00000000000000000000000000000000
+        run: |
+          npm start > /tmp/emberveil-account-service.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; cat /tmp/emberveil-account-service.log' EXIT
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:8082/healthz && break
+            sleep 1
+          done
+          status=$(curl --silent --output /tmp/cloud-response.json --write-out '%{http_code}' http://127.0.0.1:8082/api/cloud-saves)
+          test "$status" = '401'
