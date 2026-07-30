@@ -1,0 +1,67 @@
+name: Account and cloud-save service
+
+on:
+  push: {}
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: account-cloud-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['22.13.0', '24']
+    defaults:
+      run:
+        working-directory: account-cloud-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: npm install --no-fund
+      - name: Check server and test syntax
+        run: find server tests -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Run cloud-save tests
+        run: npm test
+      - name: Start service and verify health and guest isolation
+        env:
+          ACCOUNT_PORT: '8082'
+          ACCOUNT_HOST: 127.0.0.1
+          ACCOUNT_PUBLIC_BASE_URL: http://127.0.0.1:8082
+          ACCOUNT_ALLOWED_ORIGINS: http://localhost:5173
+          ACCOUNT_DATABASE_PATH: /tmp/emberveil-account-ci.sqlite
+          BETTER_AUTH_SECRET: ci-only-better-auth-secret-00000000000000000000000000000000
+          ACCOUNT_CSRF_COOKIE_SECRET: ci-only-csrf-cookie-secret-000000000000000000000000000000
+          ACCOUNT_CSRF_HMAC_KEY: ci-only-csrf-hmac-key-00000000000000000000000000000000
+        run: |
+          npm start > /tmp/emberveil-account-service.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; cat /tmp/emberveil-account-service.log' EXIT
+
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8082/healthz > /tmp/health-response.json; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true
+
+          status=$(curl --silent --output /tmp/cloud-response.json --write-out '%{http_code}' http://127.0.0.1:8082/api/cloud-saves)
+          test "$status" = '401'
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=critical
