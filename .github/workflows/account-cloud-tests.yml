@@ -1,25 +1,27 @@
 name: Account and cloud-save service
 
 on:
+  push: {}
   pull_request:
-    paths:
-      - 'account-cloud-service/**'
-      - 'docs/ACCOUNT_CLOUD_SAVE_THREAT_MODEL.md'
-      - '.github/workflows/account-cloud-tests.yml'
-  push:
-    branches: [main, agent/two-player-coop-test-room]
-    paths:
-      - 'account-cloud-service/**'
-      - 'docs/ACCOUNT_CLOUD_SAVE_THREAT_MODEL.md'
-      - '.github/workflows/account-cloud-tests.yml'
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: account-cloud-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Node ${{ matrix.node-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['22.13.0', '24']
     defaults:
       run:
         working-directory: account-cloud-service
@@ -27,10 +29,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-      - run: npm install
-      - run: npm test
-      - name: Start service and verify guest isolation
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: npm install --no-fund
+      - name: Check server and test syntax
+        run: find server tests -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Run cloud-save tests
+        run: npm test
+      - name: Start service and verify health and guest isolation
         env:
           ACCOUNT_PORT: '8082'
           ACCOUNT_HOST: 127.0.0.1
@@ -44,9 +50,18 @@ jobs:
           npm start > /tmp/emberveil-account-service.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true; cat /tmp/emberveil-account-service.log' EXIT
+
+          ready=false
           for attempt in $(seq 1 30); do
-            curl --fail --silent http://127.0.0.1:8082/healthz && break
+            if curl --fail --silent http://127.0.0.1:8082/healthz > /tmp/health-response.json; then
+              ready=true
+              break
+            fi
             sleep 1
           done
+          test "$ready" = true
+
           status=$(curl --silent --output /tmp/cloud-response.json --write-out '%{http_code}' http://127.0.0.1:8082/api/cloud-saves)
           test "$status" = '401'
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=critical
