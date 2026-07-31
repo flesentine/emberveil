@@ -1,0 +1,63 @@
+name: Golden Path Build Harness
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: npm
+          cache-dependency-path: ci/package-lock.json
+      - name: Reassemble audited source
+        shell: bash
+        run: |
+          mkdir -p game
+          cat ci/emberveil-source.b64.part* | base64 --decode > /tmp/emberveil-source.tar.xz
+          tar -xJf /tmp/emberveil-source.tar.xz -C game
+      - name: Install browser build dependencies
+        working-directory: game
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const original = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          fs.writeFileSync('package.full.json', JSON.stringify(original, null, 2) + '\n');
+          fs.writeFileSync('package.json', JSON.stringify({
+            name: 'emberveil-golden-path-build',
+            version: original.version,
+            private: true,
+            type: 'module',
+            dependencies: { phaser: '3.90.0' },
+            devDependencies: { vite: '7.0.0', typescript: '5.8.3', '@types/node': '22.15.30' }
+          }, null, 2) + '\n');
+          NODE
+          npm install --no-audit --no-fund
+      - name: Generate runtime assets
+        working-directory: game
+        run: |
+          node tools/generate-placeholder-art.mjs
+          node tools/generate-world-maps.mjs
+      - name: Build production game
+        working-directory: game
+        env:
+          VITE_BUILD_ID: golden-path-ci
+          VITE_RELEASE_CHANNEL: golden-path-test
+        run: npx vite build
+      - name: Upload playable production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: emberveil-golden-path-dist
+          path: game/dist
+          if-no-files-found: error
+          retention-days: 3
