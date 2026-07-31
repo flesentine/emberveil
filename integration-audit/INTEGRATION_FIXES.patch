@@ -1,0 +1,90 @@
+--- a/package.json
++++ b/package.json
+@@ -16,7 +16,7 @@
+     "lint:fix": "eslint . --fix",
+     "format": "prettier --write .",
+     "format:check": "prettier --check .",
+-    "check": "npm run generate:assets && npm run generate:audio:source && npm run generate:maps && npm run verify:structure && npm run verify:pixel-art && npm run verify:player && npm run verify:input && npm run verify:world-maps && npm run verify:interactions && npm run verify:dialogue-npcs && npm run verify:combat && npm run verify:equipment && npm run verify:enemies && npm run verify:health-recovery && npm run verify:inventory && npm run verify:item-economy && npm run verify:quests && npm run verify:dungeons && npm run verify:sunken-quarry && npm run verify:puzzles && npm run verify:bosses && npm run verify:cutscenes && npm run verify:audio && npm run verify:save && npm run verify:mobile && npm run verify:accessibility && npm run verify:network && npm run verify:account && npm run verify:performance && npm run verify:qa && npm run verify:release && npm run typecheck && npm run lint && npm run format:check",
++    "check": "npm run generate:assets && npm run generate:audio:source && npm run generate:maps && npm run verify:structure && npm run verify:pixel-art && npm run verify:player && npm run verify:input && npm run verify:world-maps && npm run verify:interactions && npm run verify:dialogue-npcs && npm run verify:combat && npm run verify:equipment && npm run verify:enemies && npm run verify:health-recovery && npm run verify:inventory && npm run verify:item-economy && npm run verify:quests && npm run verify:dungeons && npm run verify:sunken-quarry && npm run verify:puzzles && npm run verify:bosses && npm run verify:cutscenes && npm run verify:audio && npm run verify:save && npm run verify:mobile && npm run verify:accessibility && npm run verify:network && npm run verify:account && npm run verify:performance && npm run verify:qa && npm run verify:release && npm run verify:integration && npm run typecheck && npm run lint && npm run format:check",
+@@ -68,7 +68,8 @@
+     "test:playthrough": "playwright test tests/release-smoke.spec.ts",
+     "check:release": "npm run check && npm run build:test && npm run verify:dist && npm run test:e2e && npm run build && npm run verify:dist",
+     "verify:dist": "node tools/verify-dist-release.mjs",
+-    "test:release": "npm run test:playthrough"
++    "test:release": "npm run test:playthrough",
++    "verify:integration": "node tools/verify-integration-audit.mjs"
+--- a/src/core/SceneKeys.ts
++++ b/src/core/SceneKeys.ts
+@@ -3,8 +3,6 @@
+   Preload: 'PreloadScene',
+   Title: 'TitleScene',
+   World: 'WorldScene',
+-  Dungeon: 'DungeonScene',
+-  Interior: 'InteriorScene',
+   GameUI: 'GameUIScene',
+--- a/src/core/gameConfig.ts
++++ b/src/core/gameConfig.ts
+@@ -4,8 +4,6 @@
+ import { PreloadScene } from '../scenes/PreloadScene';
+ import { TitleScene } from '../scenes/TitleScene';
+ import { WorldScene } from '../scenes/WorldScene';
+-import { DungeonScene } from '../scenes/DungeonScene';
+-import { InteriorScene } from '../scenes/InteriorScene';
+@@ -70,8 +68,6 @@
+     PreloadScene,
+     TitleScene,
+     WorldScene,
+-    DungeonScene,
+-    InteriorScene,
+--- a/src/scenes/WorldScene.ts
++++ b/src/scenes/WorldScene.ts
+@@ -577,7 +577,6 @@
+     if (
+-      this.mode === 'new' &&
+       this.runtime.mapId === 'mossvale-village' &&
+       !this.stateStore.getFlag('cutscene.opening')
+     ) {
+--- a/src/world/maps/WorldMapParser.ts
++++ b/src/world/maps/WorldMapParser.ts
+@@ -645,7 +645,7 @@
+-        prompt: kind === 'door' ? 'Open' : kind === 'cave' ? 'Enter' : 'Use',
++        prompt: kind === 'door' ? 'Open' : kind === 'cave' || kind === 'shrine' ? 'Enter' : 'Use',
+--- a/src/world/maps/WorldMapTypes.ts
++++ b/src/world/maps/WorldMapTypes.ts
+@@ -17,7 +17,7 @@
+-export type TransitionKind = 'map-exit' | 'door' | 'cave' | 'stairs' | 'ladder' | 'portal';
++export type TransitionKind = 'map-exit' | 'door' | 'cave' | 'shrine' | 'stairs' | 'ladder' | 'portal';
+--- a/tools/generate-world-maps.mjs
++++ b/tools/generate-world-maps.mjs
+@@ -180,19 +180,11 @@
+-    point('village-interaction-rune', 'interactable', 25 * 16, 27 * 16, { label: 'Warden training arch', text: 'The arch leads to a protected yard used to test warden tools.', prompt: 'Inspect', priority: 35 }),
+   ];
+@@
+-    obj('village-to-interaction-yard', 'portal', 24 * 16, 26 * 16, 48, 32, { targetMapId: 'interaction-yard', targetSpawnId: 'yard-entry', activation: 'interact', transition: 'iris', label: 'Enter the interaction test yard', prompt: 'Enter' }),
+-    obj('village-to-combat-arena', 'portal', 28 * 16, 26 * 16, 48, 32, { targetMapId: 'combat-arena', targetSpawnId: 'combat-entry', activation: 'interact', transition: 'iris', label: 'Enter the warden combat arena', prompt: 'Train' }),
+-    obj('village-to-equipment-lab', 'portal', 32 * 16, 26 * 16, 48, 32, { targetMapId: 'equipment-lab', targetSpawnId: 'equipment-entry', activation: 'interact', transition: 'iris', label: 'Enter the warden equipment hall', prompt: 'Test tools' }),
+-    obj('village-to-enemy-lab', 'portal', 36 * 16, 26 * 16, 48, 32, { targetMapId: 'enemy-lab', targetSpawnId: 'enemy-entry', activation: 'interact', transition: 'iris', label: 'Enter the enemy behavior hall', prompt: 'Study enemies' }),
+-    obj('village-to-health-lab', 'portal', 40 * 16, 26 * 16, 48, 32, { targetMapId: 'health-lab', targetSpawnId: 'health-entry', activation: 'interact', transition: 'iris', label: 'Enter the recovery practice hall', prompt: 'Test recovery' }),
+-    obj('village-to-sunken-quarry', 'portal', 44 * 16, 26 * 16, 48, 32, { targetMapId: 'sunken-quarry', targetSpawnId: 'sunken-quarry-entry', activation: 'interact', transition: 'iris', label: 'Sealed warden training route', prompt: 'Enter dungeon', conditionWorldFlag: 'debug.training-portals', alternateText: 'This old training route is sealed. The real quarry road lies beyond Whispering Woodland.' }),
+-    obj('village-to-puzzle-lab', 'portal', 2 * 16, 26 * 16, 48, 32, { targetMapId: 'puzzle-lab', targetSpawnId: 'puzzle-entry', activation: 'interact', transition: 'iris', label: 'Enter the Warden Puzzle Laboratory', prompt: 'Test puzzles' }),
+--- a/tools/verify-equipment.mjs
++++ b/tools/verify-equipment.mjs
+@@ -154,13 +154,17 @@
+-  !villageTransitions.some((transition) =>
++  villageTransitions.some((transition) =>
+@@
+-  errors.push('Mossvale has no transition to the Equipment Hall');
++  errors.push('Equipment Hall must not be reachable from the production campaign map');
++}
++const title = read('src/scenes/TitleScene.ts');
++if (!title.includes("label: 'EQUIPMENT LAB'") || !title.includes("get('dev') === '1'")) {
++  errors.push('Equipment Hall is not connected to the development-only title menu');
+ }
+--- a/tools/verify-structure.mjs
++++ b/tools/verify-structure.mjs
+@@ -26,8 +26,6 @@
+   'PreloadScene',
+   'TitleScene',
+   'WorldScene',
+-  'DungeonScene',
+-  'InteriorScene',
