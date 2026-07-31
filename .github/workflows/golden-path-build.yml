@@ -17,8 +17,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
-          cache: npm
-          cache-dependency-path: ci/package-lock.json
       - name: Reassemble audited source
         shell: bash
         run: |
@@ -48,6 +46,8 @@ jobs:
         run: |
           node tools/generate-placeholder-art.mjs
           node tools/generate-world-maps.mjs
+          node tools/generate-dungeon-audio.mjs
+          node tools/compress-release-audio.mjs
       - name: Build production game
         working-directory: game
         env:
