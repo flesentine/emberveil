@@ -1,0 +1,73 @@
+name: RC2 dependency resolution
+
+on:
+  push:
+    branches:
+      - agent/rc2-dependency-resolution
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          registry-url: https://registry.npmjs.org
+      - name: Use matching npm
+        run: npm install --global npm@11.12.1
+      - name: Resolve exact dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rc2-deps artifact
+          cat > rc2-deps/package.json <<'JSON'
+          {
+            "name": "emberveil-rc2-deps",
+            "private": true,
+            "version": "0.0.0",
+            "dependencies": {
+              "phaser": "3.90.0",
+              "ws": "8.18.0",
+              "@fastify/cookie": "11.1.2",
+              "@fastify/cors": "11.3.0",
+              "@fastify/csrf-protection": "8.0.0",
+              "@fastify/helmet": "13.1.0",
+              "@fastify/rate-limit": "11.1.0",
+              "better-auth": "1.6.25",
+              "fastify": "5.10.0",
+              "nodemailer": "9.0.3",
+              "zod": "4.4.3",
+              "better-sqlite3": "12.0.0"
+            },
+            "devDependencies": {
+              "@eslint/js": "9.0.0",
+              "eslint": "9.0.0",
+              "eslint-config-prettier": "10.0.0",
+              "globals": "16.0.0",
+              "prettier": "3.0.0",
+              "typescript": "5.8.3",
+              "typescript-eslint": "8.0.0",
+              "vite": "7.0.0",
+              "@playwright/test": "1.54.1",
+              "@types/node": "22.12.0"
+            }
+          }
+          JSON
+          cd rc2-deps
+          npm install --registry=https://registry.npmjs.org/ --no-audit --no-fund
+          npm ls --all > ../artifact/npm-ls.txt
+          cp package-lock.json ../artifact/package-lock.json
+          tar -czf ../artifact/node_modules-linux-node22.tgz node_modules
+          node --version > ../artifact/node-version.txt
+          npm --version > ../artifact/npm-version.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rc2-dependency-bundle
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 1
