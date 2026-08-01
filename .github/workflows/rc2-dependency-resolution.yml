@@ -23,7 +23,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Use matching npm
         run: npm install --global npm@11.12.1
-      - name: Resolve exact dependency graph
+      - name: Resolve exact dependency graph and browser
         shell: bash
         run: |
           set -euo pipefail
@@ -63,9 +63,11 @@ jobs:
           JSON
           cd rc2-deps
           npm install --registry=https://registry.npmjs.org/ --no-audit --no-fund
+          npx playwright install chromium
           npm ls --all > ../artifact/npm-ls.txt
           cp package-lock.json ../artifact/package-lock.json
           tar -czf ../artifact/node_modules-linux-node22.tgz node_modules
+          tar -czf ../artifact/playwright-browsers-linux.tgz -C "$HOME/.cache" ms-playwright
           node --version > ../artifact/node-version.txt
           npm --version > ../artifact/npm-version.txt
       - uses: actions/upload-artifact@v4
